@@ -1,6 +1,7 @@
 var apiUrl = "https://api.stackexchange.com/2.2/";
 var regKeyUrl = "&key=vmabJJcs4fmvFhEfbvagXg((";
 //var regKeyUrl = "&key=6XCcTC6F0uxg2NYxjQSxSA((";
+var waybackMachineURL = "http://archive.org/wayback/available";
 //
 var pagesize = 100;
 var sleepAmount = 2000; //2 seconds
@@ -14,6 +15,20 @@ function sleep(ms) {
 function seconds_since_epoch(date) {
   return Math.floor(date.getTime() / 1000)
 }
+
+
+async function getArchivedURL(url){
+  var apiUrl = waybackMachineURL + "?url=" + url;
+  var value = await $.ajax({
+    url: apiUrl,
+    async: false
+  }).responseJSON;
+  if(value){
+    return value.archived_snapshots.closest.url;
+  }
+  return null;
+}
+
 
 async function getPosts(page,fromDate, toDate ) {
   var URL = apiUrl + "posts?page=" + page + "&pagesize=" + pagesize + "&todate="+seconds_since_epoch(toDate)+"&fromdate="+seconds_since_epoch(fromDate)+"&order=desc&sort=activity&site=stackoverflow" + regKeyUrl;
@@ -57,7 +72,7 @@ function urlExists(url, postLink) {
     if (xhr.readyState === 4) {
       if (xhr.status > 400) {
         nrBrokenLinks++;
-        $("#list").append("<li>status=" + xhr.status + "<a href='" + postLink + "'>     Stackoverflow-link       </a><a href='" + url + "'>broken-link</a></li>");
+        $("#list").append("<li>status=" + xhr.status + "<a href='" + postLink + "'>     Stackoverflow-link       </a><a href='" + url + "'>broken-link</a><a href='" +  getArchivedURL(url)  +  "'>archived-link</a></li>");
       }
     }
   };
@@ -69,7 +84,7 @@ function urlExists(url, postLink) {
 async function searchBrokenLinks(totalPages) {
   totalPages = totalPages || Number.MAX_SAFE_INTEGER;
   for (let page = 1; page <= totalPages; page++) {
-    var jsonPost = await getPosts(page, new Date(2012,1,1), new Date(2012,12,30));
+    var jsonPost = await getPosts(page, new Date(2010,5,1), new Date(2010,12,30));
 
     //if daily limit has been exceeded then stop
     if (jsonPost.quota_remaining <= 1)
