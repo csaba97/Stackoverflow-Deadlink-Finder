@@ -2,6 +2,8 @@ var apiUrl = "https://api.stackexchange.com/2.2/";
 var regKeyUrl = "&key=vmabJJcs4fmvFhEfbvagXg((";
 //var regKeyUrl = "&key=6XCcTC6F0uxg2NYxjQSxSA((";
 var waybackMachineURL = "http://archive.org/wayback/available";
+var CORSdisableUrl = "https://cors-anywhere.herokuapp.com/";
+
 //
 var pagesize = 100;
 var sleepAmount = 2000; //2 seconds
@@ -19,8 +21,9 @@ function seconds_since_epoch(date) {
 
 async function getArchivedURL(url){
   var apiUrl = waybackMachineURL + "?url=" + url;
+  var sameOriginURL = CORSdisableUrl + apiUrl;
   var value = await $.ajax({
-    url: apiUrl,
+    url: sameOriginURL,
     async: false
   }).responseJSON;
   if(value){
@@ -66,13 +69,13 @@ async function getPostById(id) {
 }
 
 function urlExists(url, postLink) {
-  var sameOriginURL = "https://cors-anywhere.herokuapp.com/" + url;
+  var sameOriginURL = CORSdisableUrl + url;
   var xhr = new XMLHttpRequest();
   xhr.onreadystatechange = function() {
     if (xhr.readyState === 4) {
       if (xhr.status > 400) {
         nrBrokenLinks++;
-        $("#list").append("<li>status=" + xhr.status + "<a href='" + postLink + "'>     Stackoverflow-link       </a><a href='" + url + "'>broken-link</a><a href='" +  getArchivedURL(url)  +  "'>archived-link</a></li>");
+        appendLinkToList(url, postLink, xhr.status);
       }
     }
   };
@@ -80,11 +83,18 @@ function urlExists(url, postLink) {
   xhr.send();
 }
 
+async function appendLinkToList(url, postLink, status){
+  var archivedUrl = await getArchivedURL(url);
+  if(!archivedUrl)
+        archivedUrl = "";
+  $("#list").append("<li>status=" + status + "<a href='" + postLink + "'>     Stackoverflow-link       </a><a href='" + url + "'>broken-link</a><a href='" +  archivedUrl  +  "'>   archived-link   </a></li>");
+}
+
 
 async function searchBrokenLinks(totalPages) {
   totalPages = totalPages || Number.MAX_SAFE_INTEGER;
   for (let page = 1; page <= totalPages; page++) {
-    var jsonPost = await getPosts(page, new Date(2010,5,1), new Date(2010,12,30));
+    var jsonPost = await getPosts(page, new Date(2010,7,1), new Date(2010,12,30));
 
     //if daily limit has been exceeded then stop
     if (jsonPost.quota_remaining <= 1)
