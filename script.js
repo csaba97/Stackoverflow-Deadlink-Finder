@@ -4,6 +4,8 @@ var regKeyUrl = "&key=vmabJJcs4fmvFhEfbvagXg((";
 var waybackMachineURL = "http://archive.org/wayback/available";
 var CORSdisableUrl = "https://cors-anywhere.herokuapp.com/";
 
+var body;//make it global variable to remain changed after several link replace
+var bodies = [];
 //
 var pagesize = 100;
 var sleepAmount = 2000; //2 seconds
@@ -68,14 +70,13 @@ async function getPostById(id) {
   return value;
 }
 
-function urlExists(url, postLink) {
+function urlExists(url, postLink, i) {
   var sameOriginURL = CORSdisableUrl + url;
   var xhr = new XMLHttpRequest();
   xhr.onreadystatechange = function() {
     if (xhr.readyState === 4) {
       if (xhr.status > 400) {
-        nrBrokenLinks++;
-        appendLinkToList(url, postLink, xhr.status);
+        appendLinkToList(url, postLink, xhr.status, i);
       }
     }
   };
@@ -83,18 +84,37 @@ function urlExists(url, postLink) {
   xhr.send();
 }
 
-async function appendLinkToList(url, postLink, status){
+
+function replaceLinkInBody(oldLink, newLink){
+  var find = oldLink;
+  var re = new RegExp(find, 'g');
+  body = body.replace(re, newLink);
+}
+
+function copyBodyToClipboard(nr) {
+  var $temp = $("<input>");
+  $("body").append($temp);
+  $temp.val(bodies[nr]).select();
+  document.execCommand("copy");
+  $temp.remove();
+}
+
+
+async function appendLinkToList(url, postLink, status, i){
+  nrBrokenLinks++;
   var archivedUrl = await getArchivedURL(url);
   if(!archivedUrl)
         archivedUrl = "";
-  $("#list").append("<li>status=" + status + "<a href='" + postLink + "'>     Stackoverflow-link       </a><a href='" + url + "'>broken-link</a><a href='" +  archivedUrl  +  "'>   archived-link   </a></li>");
+  replaceLinkInBody(url, archivedUrl);
+  bodies.push(body);
+  $("#list").append("<li>." + i + "status=" + status + "<a href='" + postLink + "'>     Stackoverflow-link       </a><a href='" + url + "'>broken-link</a><a href='" +  archivedUrl  +  "'>   archived-link   </a></li><button onclick='copyBodyToClipboard('" + nrBrokenLinks + "')'>Copy Body</button>");
 }
 
 
 async function searchBrokenLinks(totalPages) {
   totalPages = totalPages || Number.MAX_SAFE_INTEGER;
   for (let page = 1; page <= totalPages; page++) {
-    var jsonPost = await getPosts(page, new Date(2010,7,1), new Date(2010,12,30));
+    var jsonPost = await getPosts(page, new Date(2010,2,1), new Date(2010,12,30));
 
     //if daily limit has been exceeded then stop
     if (jsonPost.quota_remaining <= 1)
@@ -111,11 +131,11 @@ async function searchBrokenLinks(totalPages) {
       if (post.quota_remaining <= 1)
         return -1;
 
-      var body = post.items[0].body;
+      body = post.items[0].body;
       var href = $('<div>').append(body).find('a');
       for (let i = 0; i < href.length; i++) {
         var url = $(href[i]).attr('href');
-        urlExists(url, postLink);
+        urlExists(url, postLink, i);
       }
     }
     //update progress bar - if totalPages is missing from the parameters then the result will be inaccurate
