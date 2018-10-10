@@ -94,7 +94,7 @@ function replaceLinkInBody(oldLink, newLink){
 function copyBodyToClipboard(nr) {
   var $temp = $("<input>");
   $("body").append($temp);
-  $temp.val(bodies[nr]).select();
+  $temp.val(bodies[nr-1]).select();
   document.execCommand("copy");
   $temp.remove();
 }
@@ -107,14 +107,14 @@ async function appendLinkToList(url, postLink, status, i){
         archivedUrl = "";
   replaceLinkInBody(url, archivedUrl);
   bodies.push(body);
-  $("#list").append("<li>." + i + "status=" + status + "<a href='" + postLink + "'>     Stackoverflow-link       </a><a href='" + url + "'>broken-link</a><a href='" +  archivedUrl  +  "'>   archived-link   </a></li><button onclick='copyBodyToClipboard('" + nrBrokenLinks + "')'>Copy Body</button>");
+  $("#list").append("<li>." + i + "   status=" + status + "<a href='" + postLink + "'>     Stackoverflow-link       </a><a href='" + url + "'>broken-link</a><a href='" +  archivedUrl  +  "'>   archived-link   </a></li><button onclick='copyBodyToClipboard(" + nrBrokenLinks + ")'>Copy Body</button>");
 }
 
 
 async function searchBrokenLinks(totalPages) {
   totalPages = totalPages || Number.MAX_SAFE_INTEGER;
   for (let page = 1; page <= totalPages; page++) {
-    var jsonPost = await getPosts(page, new Date(2010,2,1), new Date(2010,12,30));
+    var jsonPost = await getPosts(page, new Date(2010,1,1), new Date(2010,12,30));
 
     //if daily limit has been exceeded then stop
     if (jsonPost.quota_remaining <= 1)
