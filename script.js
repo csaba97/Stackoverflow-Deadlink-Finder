@@ -10,7 +10,7 @@ var bodies = [];
 var pagesize = 100;
 var sleepAmount = 2000; //2 seconds
 var nrBrokenLinks = 0;
-
+var customPostFilter = "!0S26ZGstNd3Z5PS9PCgaXBpVD";//contains body, body_markdown, has_more, quota_remaining, post_id, link
 //sleep without freezing UI thread
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -54,7 +54,7 @@ async function getPosts(page,fromDate, toDate ) {
 }
 
 async function getPostById(id) {
-  var URL = apiUrl + "posts/" + id + "?&site=stackoverflow&filter=withbody" + regKeyUrl;
+  var URL = apiUrl + "posts/" + id + "?&site=stackoverflow&filter="+customPostFilter + regKeyUrl;
 
   var value = await $.ajax({
     url: URL,
@@ -70,22 +70,22 @@ async function getPostById(id) {
   return value;
 }
 
-function urlExists(url, postLink, i) {
+async function urlExists(url, postLink, i) {
   var sameOriginURL = CORSdisableUrl + url;
-  var xhr = new XMLHttpRequest();
-  xhr.onreadystatechange = function() {
-    if (xhr.readyState === 4) {
-      if (xhr.status > 400) {
-        appendLinkToList(url, postLink, xhr.status, i);
-      }
-    }
-  };
-  xhr.open('HEAD', sameOriginURL);
-  xhr.send();
+  var status = 0;
+  await $.ajax({
+    type: "HEAD",
+    url: sameOriginURL,
+    async: false
+  }).always(function (jqXHR) {
+    status = jqXHR.status;
+  });
+  if(status > 400)
+    await appendLinkToList(url, postLink, xhr.status, i);
 }
 
 
-function replaceLinkInBody(oldLink, newLink){
+function replaceLinkInBody(oldBody, oldLink, newLink){
   var find = oldLink;
   var re = new RegExp(find, 'g');
   body = body.replace(re, newLink);
@@ -101,20 +101,32 @@ function copyBodyToClipboard(nr) {
 
 
 async function appendLinkToList(url, postLink, status, i){
-  nrBrokenLinks++;
-  var archivedUrl = await getArchivedURL(url);
-  if(!archivedUrl)
-        archivedUrl = "";
-  replaceLinkInBody(url, archivedUrl);
-  bodies.push(body);
-  $("#list").append("<li>." + i + "   status=" + status + "<a href='" + postLink + "'>     Stackoverflow-link       </a><a href='" + url + "'>broken-link</a><a href='" +  archivedUrl  +  "'>   archived-link   </a></li><button onclick='copyBodyToClipboard(" + nrBrokenLinks + ")'>Copy Body</button>");
+
+  try {
+    var archivedUrl = await getArchivedURL(url);
+    if(!archivedUrl)
+          archivedUrl = "";
+    nrBrokenLinks++;
+    replaceLinkInBody(url, archivedUrl);
+    bodies.push(body);
+    $("#list").append("<li>." + i + "   status=" + status + "<a href='" + postLink + "'>     Stackoverflow-link       </a><a href='" + url + "'>broken-link</a><a href='" +  archivedUrl  +  "'>   archived-link   </a></li><button onclick='copyBodyToClipboard(" + nrBrokenLinks + ")'>Copy Body</button>");
+
+  }
+  catch(err) {
+      console.log(err.message);
+  }
 }
 
+
+function htmlDecode (textWithHtmlEntities) {
+    var tmpDoc = new DOMParser().parseFromString (textWithHtmlEntities, "text/html");
+    return tmpDoc.documentElement.textContent;
+}
 
 async function searchBrokenLinks(totalPages) {
   totalPages = totalPages || Number.MAX_SAFE_INTEGER;
   for (let page = 1; page <= totalPages; page++) {
-    var jsonPost = await getPosts(page, new Date(2010,1,1), new Date(2010,12,30));
+    var jsonPost = await getPosts(page, new Date(2010,0,1), new Date(2010,12,30));
 
     //if daily limit has been exceeded then stop
     if (jsonPost.quota_remaining <= 1)
@@ -131,11 +143,14 @@ async function searchBrokenLinks(totalPages) {
       if (post.quota_remaining <= 1)
         return -1;
 
-      body = post.items[0].body;
-      var href = $('<div>').append(body).find('a');
+      body = htmlDecode(post.items[0].body_markdown);
+
+      //find all links in the HTML body
+      var htmlBody = post.items[0].body;
+      var href = $('<div>').append(htmlBody).find('a');
       for (let i = 0; i < href.length; i++) {
         var url = $(href[i]).attr('href');
-        urlExists(url, postLink, i);
+        await urlExists(url, postLink, i);
       }
     }
     //update progress bar - if totalPages is missing from the parameters then the result will be inaccurate
