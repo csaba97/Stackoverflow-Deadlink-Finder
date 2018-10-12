@@ -76,19 +76,25 @@ async function urlExists(url, postLink, i) {
   await $.ajax({
     type: "HEAD",
     url: sameOriginURL,
-    async: false
-  }).always(function (jqXHR) {
-    status = jqXHR.status;
-  });
+    async: false,
+    error: function(xhr, statusText, err){
+        status = xhr.status;
+    }
+  }).responseJSON;
   if(status > 400)
-    await appendLinkToList(url, postLink, xhr.status, i);
+    await appendLinkToList(url, postLink, status, i);
 }
 
+//quote String to interpret it as String and not Regex
+RegExp.quote = function(str) {
+    return (str+'').replace(/[.?*+^$[\]\\(){}|-]/g, "\\$&");
+};
 
-function replaceLinkInBody(oldBody, oldLink, newLink){
+function replaceLinkInBody(oldLink, newLink){
   var find = oldLink;
-  var re = new RegExp(find, 'g');
-  body = body.replace(re, newLink);
+  var re = new RegExp(RegExp.quote(find), 'g');
+  var body2 = body.replace(re, newLink);
+  body = body2;
 }
 
 function copyBodyToClipboard(nr) {
