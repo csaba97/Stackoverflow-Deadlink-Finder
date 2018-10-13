@@ -5,7 +5,6 @@ var waybackMachineURL = "http://archive.org/wayback/available";
 var CORSdisableUrl = "https://cors-anywhere.herokuapp.com/";
 
 var body;//make it global variable to remain changed after several link replace
-var bodies = [];
 //
 var pagesize = 100;
 var sleepAmount = 2000; //2 seconds
@@ -97,14 +96,14 @@ function replaceLinkInBody(oldLink, newLink){
   body = body2;
 }
 
-function copyBodyToClipboard(nr) {
-  var $temp = $("<input>");
-  $("body").append($temp);
-  $temp.val(bodies[nr-1]).select();
-  document.execCommand("copy");
-  $temp.remove();
-}
 
+function saveBody(nr){
+  var $temp = $("<textarea>");
+  $temp.attr("id","body"+nr);
+  $temp.hide();
+  $temp.text(bodies[nr-1]);
+  $("body").append($temp);
+}
 
 async function appendLinkToList(url, postLink, status, i){
 
@@ -115,6 +114,7 @@ async function appendLinkToList(url, postLink, status, i){
     nrBrokenLinks++;
     replaceLinkInBody(url, archivedUrl);
     bodies.push(body);
+    saveBody(nrBrokenLinks);
     $("#list").append("<li>." + i + "   status=" + status + "<a href='" + postLink + "'>     Stackoverflow-link       </a><a href='" + url + "'>broken-link</a><a href='" +  archivedUrl  +  "'>   archived-link   </a></li><button onclick='copyBodyToClipboard(" + nrBrokenLinks + ")'>Copy Body</button>");
 
   }
