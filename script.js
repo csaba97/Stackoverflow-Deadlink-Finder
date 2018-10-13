@@ -6,6 +6,7 @@ var CORSdisableUrl = "https://cors-anywhere.herokuapp.com/";
 
 var body; //make it global variable to remain changed after several link replace
 //
+
 var startDate = new Date(2008, 08, 20);
 var endDate = new Date(2008, 08, 23);
 var pagesize = 100;
@@ -13,6 +14,7 @@ var sleepAmount = 2000; //2 seconds
 var sleepNoConnection = 3000;
 var nrBrokenLinks = 0;
 var ajaxTimeout = 5000; //5 seconds
+var nrTries = 0;
 var customPostFilter = "!0S26ZGstNd3Z5PS9PCgaXBpVD"; //contains body, body_markdown, has_more, quota_remaining, post_id, link
 //sleep without freezing UI thread
 function sleep(ms) {
@@ -25,6 +27,7 @@ function seconds_since_epoch(date) {
 
 
 async function getArchivedURL(url) {
+  nrTries = nrTries+1;
   var apiUrl = waybackMachineURL + "?url=" + url;
   var sameOriginURL = CORSdisableUrl + apiUrl;
   var value = null;
@@ -37,6 +40,7 @@ async function getArchivedURL(url) {
       return value.archived_snapshots.closest.url;
     }
   } catch (err) {
+    if(nrTries > 3) return null;
     console.log(err.message);
     await sleep(sleepNoConnection);
     var result = await getArchivedURL(url);
@@ -65,7 +69,7 @@ async function getPosts(page, fromDate, toDate) {
   } catch (err) {
     console.log(err.message);
     await sleep(sleepNoConnection);
-    var result = getPosts(page, fromDate, toDate);
+    var result = await getPosts(page, fromDate, toDate);
     return result;
   }
   return value;
@@ -89,7 +93,7 @@ async function getPostById(id) {
   } catch (err) {
     console.log(err.message);
     await sleep(sleepNoConnection);
-    var result = getPostById(id);
+    var result = await getPostById(id);
     return result;
   }
 
@@ -97,6 +101,7 @@ async function getPostById(id) {
 }
 
 async function urlExists(url, postLink, i) {
+  nrTries = nrTries+1; //workaround for the situation when other error occurs than connection error(not to repeat the same function multiple times)
   try { //use try catch so when the computer goes to sleep, the script does not give an error
     var sameOriginURL = CORSdisableUrl + url;
     var status = 0;
@@ -112,9 +117,9 @@ async function urlExists(url, postLink, i) {
       await appendLinkToList(url, postLink, status, i);
   } catch (err) {
     console.log(err.message);
+    if(nrTries > 3) return null;
     await sleep(sleepNoConnection);
-    var result = urlExists(url, postLink, i);
-    return result;
+    await urlExists(url, postLink, i);
   }
 
 }
@@ -155,7 +160,7 @@ async function appendLinkToList(url, postLink, status, i) {
   } catch (err) {
     console.log(err.message);
     await sleep(sleepNoConnection);
-    var result = appendLinkToList(url, postLink, status, i);
+    var result = await appendLinkToList(url, postLink, status, i);
     return result;
   }
 }
@@ -194,6 +199,7 @@ async function searchBrokenLinks(totalPages) {
         var tempBrokenLinks = nrBrokenLinks;
         for (let i = 0; i < href.length; i++) {
           var url = $(href[i]).attr('href');
+          nrTries = 0;//reset it
           await urlExists(url, postLink, i);
         }
         if (tempBrokenLinks !== nrBrokenLinks) //a broken link was found ==>> it was printed out ==>> print newline after it
@@ -211,7 +217,7 @@ async function searchBrokenLinks(totalPages) {
     } catch (err) {
       console.log(err.message);
       await sleep(sleepNoConnection);
-      var result = searchBrokenLinks(totalPages);
+      var result = await searchBrokenLinks(totalPages);
       return result;
     }
 
