@@ -6,8 +6,8 @@ var CORSdisableUrl = "https://cors-anywhere.herokuapp.com/";
 
 var body;//make it global variable to remain changed after several link replace
 //
-var startDate = new Date(2008,08,16);
-var endDate = new Date(2008,08,20);
+var startDate = new Date(2008,08,20);
+var endDate = new Date(2008,08,23);
 var pagesize = 100;
 var sleepAmount = 2000; //2 seconds
 var nrBrokenLinks = 0;
@@ -117,7 +117,7 @@ async function appendLinkToList(url, postLink, status, i){
     replaceLinkInBody(url, archivedUrl);
     bodies.push(body);
     saveBody(nrBrokenLinks);
-    $("#list").append("<li>." + i + "   status=" + status + "<a href='" + postLink + "'>     Stackoverflow-link       </a><a href='" + url + "'>broken-link</a><a href='" +  archivedUrl  +  "'>   archived-link   </a></li><button onclick='copyBodyToClipboard(" + nrBrokenLinks + ")'>Copy Body</button>");
+    $("#list").append("<li>" + nrBrokenLinks +  "." + i + "   status=" + status + "<a href='" + postLink + "'>     Stackoverflow-link       </a><a href='" + url + "'>broken-link</a><a href='" +  archivedUrl  +  "'>   archived-link   </a></li><button onclick='copyBodyToClipboard(" + nrBrokenLinks + ")'>Copy Body</button>");
 
   }
   catch(err) {
@@ -156,10 +156,13 @@ async function searchBrokenLinks(totalPages) {
       //find all links in the HTML body
       var htmlBody = post.items[0].body;
       var href = $('<div>').append(htmlBody).find('a');
+	  var tempBrokenLinks = nrBrokenLinks;
       for (let i = 0; i < href.length; i++) {
         var url = $(href[i]).attr('href');
         await urlExists(url, postLink, i);
       }
+	  if(tempBrokenLinks !== nrBrokenLinks)//a broken link was found ==>> it was printed out ==>> print newline after it
+		$("#list").append("<br>");
     }
     //update progress bar - if totalPages is missing from the parameters then the result will be inaccurate
     //but returning the remaining page numbers with the api is expensive
@@ -199,8 +202,9 @@ async function main() {
 }
 
 $(document).ready(function() {
+  
 
   main();
 
-
+  
 });

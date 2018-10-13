@@ -8,3 +8,11 @@ function copyBodyToClipboard(nr) {
     document.execCommand("copy");
     $temp.remove();
 }
+
+  
+$(document).ready(function() {
+  //know where we left - the las button which was clicked, changes color
+  $("button").click(function(){
+    $(this).css('background-color', 'red');
+  });
+});
