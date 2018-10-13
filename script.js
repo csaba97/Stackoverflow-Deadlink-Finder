@@ -6,6 +6,8 @@ var CORSdisableUrl = "https://cors-anywhere.herokuapp.com/";
 
 var body;//make it global variable to remain changed after several link replace
 //
+var startDate = new Date(2008,0,0);
+var endDate = new Date(2008,0,3);
 var pagesize = 100;
 var sleepAmount = 2000; //2 seconds
 var nrBrokenLinks = 0;
@@ -132,7 +134,7 @@ function htmlDecode (textWithHtmlEntities) {
 async function searchBrokenLinks(totalPages) {
   totalPages = totalPages || Number.MAX_SAFE_INTEGER;
   for (let page = 1; page <= totalPages; page++) {
-    var jsonPost = await getPosts(page, new Date(2010,0,1), new Date(2010,12,30));
+    var jsonPost = await getPosts(page, startDate, endDate);
 
     //if daily limit has been exceeded then stop
     if (jsonPost.quota_remaining <= 1)
