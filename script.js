@@ -56,8 +56,9 @@ async function getPosts(page,fromDate, toDate ) {
 
 async function getPostById(id) {
   var URL = apiUrl + "posts/" + id + "?&site=stackoverflow&filter="+customPostFilter + regKeyUrl;
-
-  var value = await $.ajax({
+  var value = null;
+  try {//use try catch so when the computer goes to sleep, the script does not give an error
+	value = await $.ajax({
     url: URL,
     async: false
   }).responseJSON;
@@ -68,10 +69,16 @@ async function getPostById(id) {
   } else {
     await sleep(sleepAmount);
   }
+  }
+  catch(err) {
+      console.log(err.message);
+  }
+
   return value;
 }
 
 async function urlExists(url, postLink, i) {
+  try {//use try catch so when the computer goes to sleep, the script does not give an error
   var sameOriginURL = CORSdisableUrl + url;
   var status = 0;
   await $.ajax({
@@ -84,6 +91,11 @@ async function urlExists(url, postLink, i) {
   }).responseJSON;
   if(status > 400)
     await appendLinkToList(url, postLink, status, i);
+  }
+  catch(err) {
+      console.log(err.message);
+  }
+
 }
 
 //quote String to interpret it as String and not Regex
