@@ -145,42 +145,42 @@ async function searchBrokenLinks(totalPages) {
   for (let page = 1; page <= totalPages; page++) {
     var jsonPost = await getPosts(page, startDate, endDate);
     try {
-    //if daily limit has been exceeded then stop
-    if (jsonPost.quota_remaining <= 1)
-      return -1;
-
-    var items = jsonPost.items;
-    for (let i = 0; i < items.length; i++) {
-
-      var postId = items[i].post_id;
-      var postLink = items[i].link;
-      var post = await getPostById(postId);
-
       //if daily limit has been exceeded then stop
-      if (post.quota_remaining <= 1)
+      if (jsonPost.quota_remaining <= 1)
         return -1;
 
-      body = htmlDecode(post.items[0].body_markdown);
+      var items = jsonPost.items;
+      for (let i = 0; i < items.length; i++) {
 
-      //find all links in the HTML body
-      var htmlBody = post.items[0].body;
-      var href = $('<div>').append(htmlBody).find('a');
-      var tempBrokenLinks = nrBrokenLinks;
-      for (let i = 0; i < href.length; i++) {
-        var url = $(href[i]).attr('href');
-        await urlExists(url, postLink, i);
+        var postId = items[i].post_id;
+        var postLink = items[i].link;
+        var post = await getPostById(postId);
+
+        //if daily limit has been exceeded then stop
+        if (post.quota_remaining <= 1)
+          return -1;
+
+        body = htmlDecode(post.items[0].body_markdown);
+
+        //find all links in the HTML body
+        var htmlBody = post.items[0].body;
+        var href = $('<div>').append(htmlBody).find('a');
+        var tempBrokenLinks = nrBrokenLinks;
+        for (let i = 0; i < href.length; i++) {
+          var url = $(href[i]).attr('href');
+          await urlExists(url, postLink, i);
+        }
+        if (tempBrokenLinks !== nrBrokenLinks) //a broken link was found ==>> it was printed out ==>> print newline after it
+          $("#list").append("<br>");
       }
-      if (tempBrokenLinks !== nrBrokenLinks) //a broken link was found ==>> it was printed out ==>> print newline after it
-        $("#list").append("<br>");
-    }
-    //update progress bar - if totalPages is missing from the parameters then the result will be inaccurate
-    //but returning the remaining page numbers with the api is expensive
-    var amount = (100 * page) / totalPages;
-    setProgressBar(amount);
+      //update progress bar - if totalPages is missing from the parameters then the result will be inaccurate
+      //but returning the remaining page numbers with the api is expensive
+      var amount = (100 * page) / totalPages;
+      setProgressBar(amount);
 
-    //if no more pages in result then break
-    if (jsonPost.has_more == false)
-      return 0;
+      //if no more pages in result then break
+      if (jsonPost.has_more == false)
+        return 0;
 
     } catch (err) {
       console.log(err.message);
