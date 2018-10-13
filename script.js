@@ -5,7 +5,6 @@ var waybackMachineURL = "http://archive.org/wayback/available";
 var CORSdisableUrl = "https://cors-anywhere.herokuapp.com/";
 
 var body;//make it global variable to remain changed after several link replace
-var bodies = [];
 //
 var pagesize = 100;
 var sleepAmount = 2000; //2 seconds
@@ -76,29 +75,35 @@ async function urlExists(url, postLink, i) {
   await $.ajax({
     type: "HEAD",
     url: sameOriginURL,
-    async: false
-  }).always(function (jqXHR) {
-    status = jqXHR.status;
-  });
+    async: false,
+    error: function(xhr, statusText, err){
+        status = xhr.status;
+    }
+  }).responseJSON;
   if(status > 400)
-    await appendLinkToList(url, postLink, xhr.status, i);
+    await appendLinkToList(url, postLink, status, i);
 }
 
+//quote String to interpret it as String and not Regex
+RegExp.quote = function(str) {
+    return (str+'').replace(/[.?*+^$[\]\\(){}|-]/g, "\\$&");
+};
 
-function replaceLinkInBody(oldBody, oldLink, newLink){
+function replaceLinkInBody(oldLink, newLink){
   var find = oldLink;
-  var re = new RegExp(find, 'g');
-  body = body.replace(re, newLink);
+  var re = new RegExp(RegExp.quote(find), 'g');
+  var body2 = body.replace(re, newLink);
+  body = body2;
 }
 
-function copyBodyToClipboard(nr) {
-  var $temp = $("<input>");
+
+function saveBody(nr){
+  var $temp = $("<textarea>");
+  $temp.attr("id","body"+nr);
+  $temp.hide();
+  $temp.text(bodies[nr-1]);
   $("body").append($temp);
-  $temp.val(bodies[nr-1]).select();
-  document.execCommand("copy");
-  $temp.remove();
 }
-
 
 async function appendLinkToList(url, postLink, status, i){
 
@@ -109,6 +114,7 @@ async function appendLinkToList(url, postLink, status, i){
     nrBrokenLinks++;
     replaceLinkInBody(url, archivedUrl);
     bodies.push(body);
+    saveBody(nrBrokenLinks);
     $("#list").append("<li>." + i + "   status=" + status + "<a href='" + postLink + "'>     Stackoverflow-link       </a><a href='" + url + "'>broken-link</a><a href='" +  archivedUrl  +  "'>   archived-link   </a></li><button onclick='copyBodyToClipboard(" + nrBrokenLinks + ")'>Copy Body</button>");
 
   }
