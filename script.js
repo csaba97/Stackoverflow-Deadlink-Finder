@@ -10,7 +10,9 @@ var startDate = new Date(2008, 08, 20);
 var endDate = new Date(2008, 08, 23);
 var pagesize = 100;
 var sleepAmount = 2000; //2 seconds
+var sleepNoConnection = 3000;
 var nrBrokenLinks = 0;
+var ajaxTimeout = 5000; //5 seconds
 var customPostFilter = "!0S26ZGstNd3Z5PS9PCgaXBpVD"; //contains body, body_markdown, has_more, quota_remaining, post_id, link
 //sleep without freezing UI thread
 function sleep(ms) {
@@ -25,12 +27,20 @@ function seconds_since_epoch(date) {
 async function getArchivedURL(url) {
   var apiUrl = waybackMachineURL + "?url=" + url;
   var sameOriginURL = CORSdisableUrl + apiUrl;
-  var value = await $.ajax({
-    url: sameOriginURL,
-    async: false
-  }).responseJSON;
-  if (value) {
-    return value.archived_snapshots.closest.url;
+  var value = null;
+  try {
+    value = await $.ajax({
+      url: sameOriginURL,
+      timeout: ajaxTimeout
+    });
+    if (value) {
+      return value.archived_snapshots.closest.url;
+    }
+  } catch (err) {
+    console.log(err.message);
+    await sleep(sleepNoConnection);
+    var result = await getArchivedURL(url);
+    return result;
   }
   return null;
 }
@@ -38,18 +48,25 @@ async function getArchivedURL(url) {
 
 async function getPosts(page, fromDate, toDate) {
   var URL = apiUrl + "posts?page=" + page + "&pagesize=" + pagesize + "&todate=" + seconds_since_epoch(toDate) + "&fromdate=" + seconds_since_epoch(fromDate) + "&order=desc&sort=activity&site=stackoverflow" + regKeyUrl;
+  var value = null;
+  try {
+    value = await $.ajax({
+      url: URL,
+      timeout: ajaxTimeout
+    });
 
-  var value = await $.ajax({
-    url: URL,
-    async: false
-  }).responseJSON;
-
-  if (value.backoff != null) {
-    //obey backoff -> sleep 'backoff' number of seconds
-    await sleep(value.backoff * 1000 + 100);
-    console.log("backoff value present=" + value.backoff);
-  } else {
-    await sleep(sleepAmount);
+    if (value.backoff != null) {
+      //obey backoff -> sleep 'backoff' number of seconds
+      await sleep(value.backoff * 1000 + 100);
+      console.log("backoff value present=" + value.backoff);
+    } else {
+      await sleep(sleepAmount);
+    }
+  } catch (err) {
+    console.log(err.message);
+    await sleep(sleepNoConnection);
+    var result = getPosts(page, fromDate, toDate);
+    return result;
   }
   return value;
 }
@@ -60,8 +77,8 @@ async function getPostById(id) {
   try { //use try catch so when the computer goes to sleep, the script does not give an error
     value = await $.ajax({
       url: URL,
-      async: false
-    }).responseJSON;
+      timeout: ajaxTimeout
+    });
     if (value.backoff != null) {
       //obey backoff -> sleep 'backoff' number of seconds
       await sleep(value.backoff * 1000 + 100);
@@ -71,6 +88,9 @@ async function getPostById(id) {
     }
   } catch (err) {
     console.log(err.message);
+    await sleep(sleepNoConnection);
+    var result = getPostById(id);
+    return result;
   }
 
   return value;
@@ -83,15 +103,18 @@ async function urlExists(url, postLink, i) {
     await $.ajax({
       type: "HEAD",
       url: sameOriginURL,
-      async: false,
+      timeout: ajaxTimeout,
       error: function(xhr, statusText, err) {
         status = xhr.status;
       }
-    }).responseJSON;
+    });
     if (status > 400)
       await appendLinkToList(url, postLink, status, i);
   } catch (err) {
     console.log(err.message);
+    await sleep(sleepNoConnection);
+    var result = urlExists(url, postLink, i);
+    return result;
   }
 
 }
@@ -131,6 +154,9 @@ async function appendLinkToList(url, postLink, status, i) {
 
   } catch (err) {
     console.log(err.message);
+    await sleep(sleepNoConnection);
+    var result = appendLinkToList(url, postLink, status, i);
+    return result;
   }
 }
 
@@ -184,6 +210,9 @@ async function searchBrokenLinks(totalPages) {
 
     } catch (err) {
       console.log(err.message);
+      await sleep(sleepNoConnection);
+      var result = searchBrokenLinks(totalPages);
+      return result;
     }
 
   }
