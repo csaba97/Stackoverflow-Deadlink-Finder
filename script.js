@@ -6,8 +6,8 @@ var CORSdisableUrl = "https://cors-anywhere.herokuapp.com/";
 
 var body;//make it global variable to remain changed after several link replace
 //
-var startDate = new Date(2008,0,0);
-var endDate = new Date(2008,0,3);
+var startDate = new Date(2008,08,16);
+var endDate = new Date(2008,08,20);
 var pagesize = 100;
 var sleepAmount = 2000; //2 seconds
 var nrBrokenLinks = 0;
