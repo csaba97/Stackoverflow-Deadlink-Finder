@@ -144,7 +144,7 @@ async function searchBrokenLinks(totalPages) {
   totalPages = totalPages || Number.MAX_SAFE_INTEGER;
   for (let page = 1; page <= totalPages; page++) {
     var jsonPost = await getPosts(page, startDate, endDate);
-    try {
+
     //if daily limit has been exceeded then stop
     if (jsonPost.quota_remaining <= 1)
       return -1;
@@ -172,9 +172,6 @@ async function searchBrokenLinks(totalPages) {
       }
       if (tempBrokenLinks !== nrBrokenLinks) //a broken link was found ==>> it was printed out ==>> print newline after it
         $("#list").append("<br>");
-      } catch (err) {
-        console.log(err.message);
-      }  
     }
     //update progress bar - if totalPages is missing from the parameters then the result will be inaccurate
     //but returning the remaining page numbers with the api is expensive
