@@ -144,7 +144,7 @@ async function searchBrokenLinks(totalPages) {
   totalPages = totalPages || Number.MAX_SAFE_INTEGER;
   for (let page = 1; page <= totalPages; page++) {
     var jsonPost = await getPosts(page, startDate, endDate);
-
+    try {
     //if daily limit has been exceeded then stop
     if (jsonPost.quota_remaining <= 1)
       return -1;
@@ -181,6 +181,11 @@ async function searchBrokenLinks(totalPages) {
     //if no more pages in result then break
     if (jsonPost.has_more == false)
       return 0;
+
+    } catch (err) {
+      console.log(err.message);
+    }
+
   }
   return 0;
 }
