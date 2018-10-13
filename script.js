@@ -27,7 +27,7 @@ function seconds_since_epoch(date) {
 
 
 async function getArchivedURL(url) {
-  nrTries = nrTries+1;
+  nrTries = nrTries + 1;
   var apiUrl = waybackMachineURL + "?url=" + url;
   var sameOriginURL = CORSdisableUrl + apiUrl;
   var value = null;
@@ -36,11 +36,11 @@ async function getArchivedURL(url) {
       url: sameOriginURL,
       timeout: ajaxTimeout
     });
-    if (value) {
+    if (value.archived_snapshots.closest.url) {
       return value.archived_snapshots.closest.url;
     }
   } catch (err) {
-    if(nrTries > 3) return null;
+    if (nrTries > 6) return null;
     console.log(err.message);
     await sleep(sleepNoConnection);
     var result = await getArchivedURL(url);
@@ -101,7 +101,7 @@ async function getPostById(id) {
 }
 
 async function urlExists(url, postLink, i) {
-  nrTries = nrTries+1; //workaround for the situation when other error occurs than connection error(not to repeat the same function multiple times)
+  nrTries = nrTries + 1; //workaround for the situation when other error occurs than connection error(not to repeat the same function multiple times)
   try { //use try catch so when the computer goes to sleep, the script does not give an error
     var sameOriginURL = CORSdisableUrl + url;
     var status = 0;
@@ -117,7 +117,11 @@ async function urlExists(url, postLink, i) {
       await appendLinkToList(url, postLink, status, i);
   } catch (err) {
     console.log(err.message);
-    if(nrTries > 3) return null;
+    if (status > 400) {
+      await appendLinkToList(url, postLink, status, i);
+      return null;
+    }
+    if (nrTries > 6) return null;
     await sleep(sleepNoConnection);
     await urlExists(url, postLink, i);
   }
@@ -199,7 +203,7 @@ async function searchBrokenLinks(totalPages) {
         var tempBrokenLinks = nrBrokenLinks;
         for (let i = 0; i < href.length; i++) {
           var url = $(href[i]).attr('href');
-          nrTries = 0;//reset it
+          nrTries = 0; //reset it
           await urlExists(url, postLink, i);
         }
         if (tempBrokenLinks !== nrBrokenLinks) //a broken link was found ==>> it was printed out ==>> print newline after it
