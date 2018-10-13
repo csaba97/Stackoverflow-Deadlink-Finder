@@ -4,14 +4,14 @@ var regKeyUrl = "&key=vmabJJcs4fmvFhEfbvagXg((";
 var waybackMachineURL = "http://archive.org/wayback/available";
 var CORSdisableUrl = "https://cors-anywhere.herokuapp.com/";
 
-var body;//make it global variable to remain changed after several link replace
+var body; //make it global variable to remain changed after several link replace
 //
-var startDate = new Date(2008,08,20);
-var endDate = new Date(2008,08,23);
+var startDate = new Date(2008, 08, 20);
+var endDate = new Date(2008, 08, 23);
 var pagesize = 100;
 var sleepAmount = 2000; //2 seconds
 var nrBrokenLinks = 0;
-var customPostFilter = "!0S26ZGstNd3Z5PS9PCgaXBpVD";//contains body, body_markdown, has_more, quota_remaining, post_id, link
+var customPostFilter = "!0S26ZGstNd3Z5PS9PCgaXBpVD"; //contains body, body_markdown, has_more, quota_remaining, post_id, link
 //sleep without freezing UI thread
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -22,22 +22,22 @@ function seconds_since_epoch(date) {
 }
 
 
-async function getArchivedURL(url){
+async function getArchivedURL(url) {
   var apiUrl = waybackMachineURL + "?url=" + url;
   var sameOriginURL = CORSdisableUrl + apiUrl;
   var value = await $.ajax({
     url: sameOriginURL,
     async: false
   }).responseJSON;
-  if(value){
+  if (value) {
     return value.archived_snapshots.closest.url;
   }
   return null;
 }
 
 
-async function getPosts(page,fromDate, toDate ) {
-  var URL = apiUrl + "posts?page=" + page + "&pagesize=" + pagesize + "&todate="+seconds_since_epoch(toDate)+"&fromdate="+seconds_since_epoch(fromDate)+"&order=desc&sort=activity&site=stackoverflow" + regKeyUrl;
+async function getPosts(page, fromDate, toDate) {
+  var URL = apiUrl + "posts?page=" + page + "&pagesize=" + pagesize + "&todate=" + seconds_since_epoch(toDate) + "&fromdate=" + seconds_since_epoch(fromDate) + "&order=desc&sort=activity&site=stackoverflow" + regKeyUrl;
 
   var value = await $.ajax({
     url: URL,
@@ -55,55 +55,53 @@ async function getPosts(page,fromDate, toDate ) {
 }
 
 async function getPostById(id) {
-  var URL = apiUrl + "posts/" + id + "?&site=stackoverflow&filter="+customPostFilter + regKeyUrl;
+  var URL = apiUrl + "posts/" + id + "?&site=stackoverflow&filter=" + customPostFilter + regKeyUrl;
   var value = null;
-  try {//use try catch so when the computer goes to sleep, the script does not give an error
-	value = await $.ajax({
-    url: URL,
-    async: false
-  }).responseJSON;
-  if (value.backoff != null) {
-    //obey backoff -> sleep 'backoff' number of seconds
-    await sleep(value.backoff * 1000 + 100);
-    console.log("backoff value present=" + value.backoff);
-  } else {
-    await sleep(sleepAmount);
-  }
-  }
-  catch(err) {
-      console.log(err.message);
+  try { //use try catch so when the computer goes to sleep, the script does not give an error
+    value = await $.ajax({
+      url: URL,
+      async: false
+    }).responseJSON;
+    if (value.backoff != null) {
+      //obey backoff -> sleep 'backoff' number of seconds
+      await sleep(value.backoff * 1000 + 100);
+      console.log("backoff value present=" + value.backoff);
+    } else {
+      await sleep(sleepAmount);
+    }
+  } catch (err) {
+    console.log(err.message);
   }
 
   return value;
 }
 
 async function urlExists(url, postLink, i) {
-  try {//use try catch so when the computer goes to sleep, the script does not give an error
-  var sameOriginURL = CORSdisableUrl + url;
-  var status = 0;
-  await $.ajax({
-    type: "HEAD",
-    url: sameOriginURL,
-    async: false,
-    error: function(xhr, statusText, err){
+  try { //use try catch so when the computer goes to sleep, the script does not give an error
+    var sameOriginURL = CORSdisableUrl + url;
+    var status = 0;
+    await $.ajax({
+      type: "HEAD",
+      url: sameOriginURL,
+      async: false,
+      error: function(xhr, statusText, err) {
         status = xhr.status;
-    }
-  }).responseJSON;
-  if(status > 400)
-    await appendLinkToList(url, postLink, status, i);
-  }
-  catch(err) {
-      console.log(err.message);
+      }
+    }).responseJSON;
+    if (status > 400)
+      await appendLinkToList(url, postLink, status, i);
+  } catch (err) {
+    console.log(err.message);
   }
 
 }
 
 //quote String to interpret it as String and not Regex
 RegExp.quote = function(str) {
-    return (str+'').replace(/[.?*+^$[\]\\(){}|-]/g, "\\$&");
+  return (str + '').replace(/[.?*+^$[\]\\(){}|-]/g, "\\$&");
 };
 
-function replaceLinkInBody(oldLink, newLink){
+function replaceLinkInBody(oldLink, newLink) {
   var find = oldLink;
   var re = new RegExp(RegExp.quote(find), 'g');
   var body2 = body.replace(re, newLink);
@@ -111,36 +109,35 @@ function replaceLinkInBody(oldLink, newLink){
 }
 
 
-function saveBody(nr){
+function saveBody(nr) {
   var $temp = $("<textarea>");
-  $temp.attr("id","body"+nr);
+  $temp.attr("id", "body" + nr);
   $temp.hide();
-  $temp.text(bodies[nr-1]);
+  $temp.text(bodies[nr - 1]);
   $("body").append($temp);
 }
 
-async function appendLinkToList(url, postLink, status, i){
+async function appendLinkToList(url, postLink, status, i) {
 
   try {
     var archivedUrl = await getArchivedURL(url);
-    if(!archivedUrl)
-          archivedUrl = "";
+    if (!archivedUrl)
+      archivedUrl = "";
     nrBrokenLinks++;
     replaceLinkInBody(url, archivedUrl);
     bodies.push(body);
     saveBody(nrBrokenLinks);
-    $("#list").append("<li>" + nrBrokenLinks +  "." + i + "   status=" + status + "<a href='" + postLink + "'>     Stackoverflow-link       </a><a href='" + url + "'>broken-link</a><a href='" +  archivedUrl  +  "'>   archived-link   </a></li><button onclick='copyBodyToClipboard(" + nrBrokenLinks + ")'>Copy Body</button>");
+    $("#list").append("<li>" + nrBrokenLinks + "." + i + "   status=" + status + "<a href='" + postLink + "'>     Stackoverflow-link       </a><a href='" + url + "'>broken-link</a><a href='" + archivedUrl + "'>   archived-link   </a></li><button onclick='copyBodyToClipboard(" + nrBrokenLinks + ")'>Copy Body</button>");
 
-  }
-  catch(err) {
-      console.log(err.message);
+  } catch (err) {
+    console.log(err.message);
   }
 }
 
 
-function htmlDecode (textWithHtmlEntities) {
-    var tmpDoc = new DOMParser().parseFromString (textWithHtmlEntities, "text/html");
-    return tmpDoc.documentElement.textContent;
+function htmlDecode(textWithHtmlEntities) {
+  var tmpDoc = new DOMParser().parseFromString(textWithHtmlEntities, "text/html");
+  return tmpDoc.documentElement.textContent;
 }
 
 async function searchBrokenLinks(totalPages) {
@@ -168,13 +165,13 @@ async function searchBrokenLinks(totalPages) {
       //find all links in the HTML body
       var htmlBody = post.items[0].body;
       var href = $('<div>').append(htmlBody).find('a');
-	  var tempBrokenLinks = nrBrokenLinks;
+      var tempBrokenLinks = nrBrokenLinks;
       for (let i = 0; i < href.length; i++) {
         var url = $(href[i]).attr('href');
         await urlExists(url, postLink, i);
       }
-	  if(tempBrokenLinks !== nrBrokenLinks)//a broken link was found ==>> it was printed out ==>> print newline after it
-		$("#list").append("<br>");
+      if (tempBrokenLinks !== nrBrokenLinks) //a broken link was found ==>> it was printed out ==>> print newline after it
+        $("#list").append("<br>");
     }
     //update progress bar - if totalPages is missing from the parameters then the result will be inaccurate
     //but returning the remaining page numbers with the api is expensive
@@ -214,9 +211,9 @@ async function main() {
 }
 
 $(document).ready(function() {
-  
+
 
   main();
 
-  
+
 });
