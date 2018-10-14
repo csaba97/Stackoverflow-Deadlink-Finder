@@ -26,6 +26,18 @@ function seconds_since_epoch(date) {
 }
 
 
+async function isInternetConnection() {
+  try {
+    await $.ajax({
+      url: CORSdisableUrl + "google.com",
+    });
+  } catch (err) {
+    console.log(err.message);
+    return false;
+  }
+  return true;
+}
+
 async function getArchivedURL(url) {
   nrTries = nrTries + 1;
   var apiUrl = waybackMachineURL + "?url=" + url;
@@ -40,9 +52,12 @@ async function getArchivedURL(url) {
       return value.archived_snapshots.closest.url;
     }
   } catch (err) {
-    if (nrTries > 6) return null;
     console.log(err.message);
-    await sleep(sleepNoConnection);
+    var conn = await isInternetConnection();
+    if(conn){
+      return null;//it means we have another error =>> just continue executing
+    }
+    await sleep(sleepNoConnection);//sleep after checking internet connection because it can happen that connection is resumed after sleep
     var result = await getArchivedURL(url);
     return result;
   }
@@ -68,6 +83,10 @@ async function getPosts(page, fromDate, toDate) {
     }
   } catch (err) {
     console.log(err.message);
+    var conn = await isInternetConnection();
+    if(conn){
+      return null;//it means we have another error =>> just continue executing
+    }
     await sleep(sleepNoConnection);
     var result = await getPosts(page, fromDate, toDate);
     return result;
@@ -92,6 +111,10 @@ async function getPostById(id) {
     }
   } catch (err) {
     console.log(err.message);
+    var conn = await isInternetConnection();
+    if(conn){
+      return null;//it means we have another error =>> just continue executing
+    }
     await sleep(sleepNoConnection);
     var result = await getPostById(id);
     return result;
@@ -121,7 +144,11 @@ async function urlExists(url, postLink, i) {
       await appendLinkToList(url, postLink, status, i);
       return null;
     }
-    if (nrTries > 6) return null;
+    var conn = await isInternetConnection();
+    if(conn){
+      return null;//it means we have another error =>> just continue executing
+    }
+    //sleep after checking internet connection because it can happen that connection is resumed after sleep
     await sleep(sleepNoConnection);
     await urlExists(url, postLink, i);
   }
