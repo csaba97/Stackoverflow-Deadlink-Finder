@@ -54,10 +54,10 @@ async function getArchivedURL(url) {
   } catch (err) {
     console.log(err.message);
     var conn = await isInternetConnection();
-    if(conn){
-      return null;//it means we have another error =>> just continue executing
+    if (conn) {
+      return null; //it means we have another error =>> just continue executing
     }
-    await sleep(sleepNoConnection);//sleep after checking internet connection because it can happen that connection is resumed after sleep
+    await sleep(sleepNoConnection); //sleep after checking internet connection because it can happen that connection is resumed after sleep
     var result = await getArchivedURL(url);
     return result;
   }
@@ -84,8 +84,8 @@ async function getPosts(page, fromDate, toDate) {
   } catch (err) {
     console.log(err.message);
     var conn = await isInternetConnection();
-    if(conn){
-      return null;//it means we have another error =>> just continue executing
+    if (conn) {
+      return null; //it means we have another error =>> just continue executing
     }
     await sleep(sleepNoConnection);
     var result = await getPosts(page, fromDate, toDate);
@@ -112,8 +112,8 @@ async function getPostById(id) {
   } catch (err) {
     console.log(err.message);
     var conn = await isInternetConnection();
-    if(conn){
-      return null;//it means we have another error =>> just continue executing
+    if (conn) {
+      return null; //it means we have another error =>> just continue executing
     }
     await sleep(sleepNoConnection);
     var result = await getPostById(id);
@@ -145,8 +145,8 @@ async function urlExists(url, postLink, i) {
       return null;
     }
     var conn = await isInternetConnection();
-    if(conn){
-      return null;//it means we have another error =>> just continue executing
+    if (conn) {
+      return null; //it means we have another error =>> just continue executing
     }
     //sleep after checking internet connection because it can happen that connection is resumed after sleep
     await sleep(sleepNoConnection);
@@ -177,23 +177,14 @@ function saveBody(nr) {
 }
 
 async function appendLinkToList(url, postLink, status, i) {
-
-  try {
-    var archivedUrl = await getArchivedURL(url);
-    if (!archivedUrl)
-      archivedUrl = "";
-    nrBrokenLinks++;
-    replaceLinkInBody(url, archivedUrl);
-    bodies.push(body);
-    saveBody(nrBrokenLinks);
-    $("#list").append("<li>" + nrBrokenLinks + "." + i + "   status=" + status + "<a href='" + postLink + "'>     Stackoverflow-link       </a><a href='" + url + "'>broken-link</a><a href='" + archivedUrl + "'>   archived-link   </a></li><button onclick='copyBodyToClipboard(" + nrBrokenLinks + ")'>Copy Body</button>");
-
-  } catch (err) {
-    console.log(err.message);
-    await sleep(sleepNoConnection);
-    var result = await appendLinkToList(url, postLink, status, i);
-    return result;
-  }
+  var archivedUrl = await getArchivedURL(url);
+  if (!archivedUrl)
+    archivedUrl = "";
+  nrBrokenLinks++;
+  replaceLinkInBody(url, archivedUrl);
+  bodies.push(body);
+  saveBody(nrBrokenLinks);
+  $("#list").append("<li>" + nrBrokenLinks + "." + i + "   status=" + status + "<a href='" + postLink + "'>     Stackoverflow-link       </a><a href='" + url + "'>broken-link</a><a href='" + archivedUrl + "'>   archived-link   </a></li><button onclick='copyBodyToClipboard(" + nrBrokenLinks + ")'>Copy Body</button>");
 }
 
 
@@ -206,52 +197,43 @@ async function searchBrokenLinks(totalPages) {
   totalPages = totalPages || Number.MAX_SAFE_INTEGER;
   for (let page = 1; page <= totalPages; page++) {
     var jsonPost = await getPosts(page, startDate, endDate);
-    try {
+    //if daily limit has been exceeded then stop
+    if (jsonPost.quota_remaining <= 1)
+      return -1;
+
+    var items = jsonPost.items;
+    for (let i = 0; i < items.length; i++) {
+
+      var postId = items[i].post_id;
+      var postLink = items[i].link;
+      var post = await getPostById(postId);
+
       //if daily limit has been exceeded then stop
-      if (jsonPost.quota_remaining <= 1)
+      if (post.quota_remaining <= 1)
         return -1;
 
-      var items = jsonPost.items;
-      for (let i = 0; i < items.length; i++) {
+      body = htmlDecode(post.items[0].body_markdown);
 
-        var postId = items[i].post_id;
-        var postLink = items[i].link;
-        var post = await getPostById(postId);
-
-        //if daily limit has been exceeded then stop
-        if (post.quota_remaining <= 1)
-          return -1;
-
-        body = htmlDecode(post.items[0].body_markdown);
-
-        //find all links in the HTML body
-        var htmlBody = post.items[0].body;
-        var href = $('<div>').append(htmlBody).find('a');
-        var tempBrokenLinks = nrBrokenLinks;
-        for (let i = 0; i < href.length; i++) {
-          var url = $(href[i]).attr('href');
-          nrTries = 0; //reset it
-          await urlExists(url, postLink, i);
-        }
-        if (tempBrokenLinks !== nrBrokenLinks) //a broken link was found ==>> it was printed out ==>> print newline after it
-          $("#list").append("<br>");
+      //find all links in the HTML body
+      var htmlBody = post.items[0].body;
+      var href = $('<div>').append(htmlBody).find('a');
+      var tempBrokenLinks = nrBrokenLinks;
+      for (let i = 0; i < href.length; i++) {
+        var url = $(href[i]).attr('href');
+        nrTries = 0; //reset it
+        await urlExists(url, postLink, i);
       }
-      //update progress bar - if totalPages is missing from the parameters then the result will be inaccurate
-      //but returning the remaining page numbers with the api is expensive
-      var amount = (100 * page) / totalPages;
-      setProgressBar(amount);
-
-      //if no more pages in result then break
-      if (jsonPost.has_more == false)
-        return 0;
-
-    } catch (err) {
-      console.log(err.message);
-      await sleep(sleepNoConnection);
-      var result = await searchBrokenLinks(totalPages);
-      return result;
+      if (tempBrokenLinks !== nrBrokenLinks) //a broken link was found ==>> it was printed out ==>> print newline after it
+        $("#list").append("<br>");
     }
+    //update progress bar - if totalPages is missing from the parameters then the result will be inaccurate
+    //but returning the remaining page numbers with the api is expensive
+    var amount = (100 * page) / totalPages;
+    setProgressBar(amount);
 
+    //if no more pages in result then break
+    if (jsonPost.has_more == false)
+      return 0;
   }
   return 0;
 }
