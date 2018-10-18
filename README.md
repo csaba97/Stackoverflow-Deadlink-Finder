@@ -1,4 +1,7 @@
 # Stackoverflow Dead link Finder
+
+>Note: Cors-Anywhere service does not work currently and this app uses this service. Until this is not fixed, the script won't work.
+
 ### About
 - check out this [short](https://www.youtube.com/watch?v=piqzsF7t4IM&feature=youtu.be) youtube video
 - this is a `jQuery` application which uses the Stack Exchange API to find broken links on Stackoverflow. It can be used on other sites from the Stack Exchange family as well. 
