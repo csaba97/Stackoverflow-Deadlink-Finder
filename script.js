@@ -7,8 +7,8 @@ var CORSdisableUrl = "https://cors-anywhere.herokuapp.com/";
 var body; //make it global variable to remain changed after several link replace
 //
 
-var startDate = new Date(2008, 08, 20);
-var endDate = new Date(2008, 08, 23);
+var startDate = new Date(2008, 8, 25);
+var endDate = new Date(2008, 8, 30);
 var pagesize = 100;
 var sleepAmount = 2000; //2 seconds
 var sleepNoConnection = 3000;
@@ -178,13 +178,20 @@ function saveBody(nr) {
 
 async function appendLinkToList(url, postLink, status, i) {
   var archivedUrl = await getArchivedURL(url);
-  if (!archivedUrl)
-    archivedUrl = "";
-  nrBrokenLinks++;
-  replaceLinkInBody(url, archivedUrl);
-  bodies.push(body);
-  saveBody(nrBrokenLinks);
-  $("#list").append("<li>" + nrBrokenLinks + "." + i + "   status=" + status + "<a href='" + postLink + "'>     Stackoverflow-link       </a><a href='" + url + "'>broken-link</a><a href='" + archivedUrl + "'>   archived-link   </a></li><button onclick='copyBodyToClipboard(" + nrBrokenLinks + ")'>Copy Body</button>");
+  if (archivedUrl !== null && archivedUrl !== undefined) {
+    if(archivedUrl.length > 0) {
+      //archivedUrl = "";
+      nrBrokenLinks++;
+      replaceLinkInBody(url, archivedUrl);
+      bodies.push(body);
+      saveBody(nrBrokenLinks);
+      $("#list").append("<li>" + nrBrokenLinks + "." + i + "   status=" + status + "" +
+          "<a href='" + postLink + "'>     Stackoverflow-link       </a>" +
+          "<iframe src='" + url + "' width='600' height='600' ></iframe>" +
+          "<iframe src='" + archivedUrl + "' width='600' height='600' ></iframe>" +
+          "</li><button onclick='copyBodyToClipboard(" + nrBrokenLinks + ")'>Copy Body</button>");
+    }
+  }
 }
 
 
