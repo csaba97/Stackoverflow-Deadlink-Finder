@@ -6,9 +6,9 @@ var CORSdisableUrl = "https://cors-anywhere.herokuapp.com/";
 
 var body; //make it global variable to remain changed after several link replace
 //
-
-var startDate = new Date(2008, 8, 25);
-var endDate = new Date(2008, 8, 30);
+//started from 2008-09
+var startDate = new Date(2008, 7, 14);
+var endDate = new Date(2008, 7, 15);
 var pagesize = 100;
 var sleepAmount = 2000; //2 seconds
 var sleepNoConnection = 3000;
@@ -16,6 +16,10 @@ var nrBrokenLinks = 0;
 var ajaxTimeout = 5000; //5 seconds
 var nrTries = 0;
 var customPostFilter = "!0S26ZGstNd3Z5PS9PCgaXBpVD"; //contains body, body_markdown, has_more, quota_remaining, post_id, link
+var totPages = 10;
+
+var maxPage = 0;
+
 //sleep without freezing UI thread
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -79,9 +83,11 @@ async function getPosts(page, fromDate, toDate) {
       await sleep(value.backoff * 1000 + 100);
       console.log("backoff value present=" + value.backoff);
     } else {
+       // console.log("sleepAmount");
       await sleep(sleepAmount);
     }
   } catch (err) {
+      await sleep(sleepAmount);
     console.log(err.message);
     var conn = await isInternetConnection();
     if (conn) {
@@ -123,7 +129,7 @@ async function getPostById(id) {
   return value;
 }
 
-async function urlExists(url, postLink, i) {
+async function urlExists(text, url, postLink, i) {
   nrTries = nrTries + 1; //workaround for the situation when other error occurs than connection error(not to repeat the same function multiple times)
   try { //use try catch so when the computer goes to sleep, the script does not give an error
     var sameOriginURL = CORSdisableUrl + url;
@@ -136,12 +142,12 @@ async function urlExists(url, postLink, i) {
         status = xhr.status;
       }
     });
-    if (status > 400)
-      await appendLinkToList(url, postLink, status, i);
+    if (status === 404)//if (status > 400)
+      await appendLinkToList(text, url, postLink, status, i);
   } catch (err) {
     console.log(err.message);
-    if (status > 400) {
-      await appendLinkToList(url, postLink, status, i);
+    if (status === 404) {//if (status > 400)
+      await appendLinkToList(text, url, postLink, status, i);
       return null;
     }
     var conn = await isInternetConnection();
@@ -150,7 +156,7 @@ async function urlExists(url, postLink, i) {
     }
     //sleep after checking internet connection because it can happen that connection is resumed after sleep
     await sleep(sleepNoConnection);
-    await urlExists(url, postLink, i);
+    await urlExists(text, url, postLink, i);
   }
 
 }
@@ -176,7 +182,7 @@ function saveBody(nr) {
   $("body").append($temp);
 }
 
-async function appendLinkToList(url, postLink, status, i) {
+async function appendLinkToList(text, url, postLink, status, i) {
   var archivedUrl = await getArchivedURL(url);
   if (archivedUrl !== null && archivedUrl !== undefined) {
     if(archivedUrl.length > 0) {
@@ -185,7 +191,13 @@ async function appendLinkToList(url, postLink, status, i) {
       replaceLinkInBody(url, archivedUrl);
       bodies.push(body);
       saveBody(nrBrokenLinks);
-      $("#list").append("<li>" + nrBrokenLinks + "." + i + "   status=" + status + "" +
+      // $("#list").append("<li>" + nrBrokenLinks + "." + i + "   status=" + status + "" +
+      //     "<a href='" + postLink + "'>     Stackoverflow-link       </a>" +
+      //     "<iframe src='" + url + "' width='600' height='600' ></iframe>" +
+      //     "<iframe src='" + archivedUrl + "' width='600' height='600' ></iframe>" +
+      //     "</li><button onclick='copyBodyToClipboard(" + nrBrokenLinks + ")'>Copy Body</button>");
+
+      $("#list").append("<li>" + nrBrokenLinks + "." + i + "   link=" + text + "" +
           "<a href='" + postLink + "'>     Stackoverflow-link       </a>" +
           "<iframe src='" + url + "' width='600' height='600' ></iframe>" +
           "<iframe src='" + archivedUrl + "' width='600' height='600' ></iframe>" +
@@ -202,45 +214,78 @@ function htmlDecode(textWithHtmlEntities) {
 
 async function searchBrokenLinks(totalPages) {
   totalPages = totalPages || Number.MAX_SAFE_INTEGER;
-  for (let page = 1; page <= totalPages; page++) {
-    var jsonPost = await getPosts(page, startDate, endDate);
-    //if daily limit has been exceeded then stop
-    if (jsonPost.quota_remaining <= 1)
-      return -1;
+  for (let page = 1; ; page++) {
+    try {
 
-    var items = jsonPost.items;
-    for (let i = 0; i < items.length; i++) {
+      if(page > maxPage){
+        maxPage = page;
+      }
 
-      var postId = items[i].post_id;
-      var postLink = items[i].link;
-      var post = await getPostById(postId);
 
+      var jsonPost = await getPosts(page, startDate, endDate);
       //if daily limit has been exceeded then stop
-      if (post.quota_remaining <= 1)
+      if (jsonPost.quota_remaining <= 1)
         return -1;
 
-      body = htmlDecode(post.items[0].body_markdown);
+      var items = jsonPost.items;
 
-      //find all links in the HTML body
-      var htmlBody = post.items[0].body;
-      var href = $('<div>').append(htmlBody).find('a');
-      var tempBrokenLinks = nrBrokenLinks;
-      for (let i = 0; i < href.length; i++) {
-        var url = $(href[i]).attr('href');
-        nrTries = 0; //reset it
-        await urlExists(url, postLink, i);
+      if (items.length === 0) {
+        alert("done");
+        break;
       }
-      if (tempBrokenLinks !== nrBrokenLinks) //a broken link was found ==>> it was printed out ==>> print newline after it
-        $("#list").append("<br>");
-    }
-    //update progress bar - if totalPages is missing from the parameters then the result will be inaccurate
-    //but returning the remaining page numbers with the api is expensive
-    var amount = (100 * page) / totalPages;
-    setProgressBar(amount);
 
-    //if no more pages in result then break
-    if (jsonPost.has_more == false)
-      return 0;
+      for (let i = 0; i < items.length; i++) {
+        try {
+          var postId = items[i].post_id;
+          var postLink = items[i].link;
+          var post = await getPostById(postId);
+
+          //if daily limit has been exceeded then stop
+          if (post.quota_remaining <= 1)
+            return -1;
+
+          body = htmlDecode(post.items[0].body_markdown);
+
+          //find all links in the HTML body
+          var htmlBody = post.items[0].body;
+
+          //alert(htmlBody.length + ":"+postLink);
+          if (htmlBody.length <= 1000) {
+
+            var href = $('<div>').append(htmlBody).find('a');
+            var tempBrokenLinks = nrBrokenLinks;
+
+            // if(href.length <= 3) {//currently only check short and one link posts
+
+            for (let i = 0; i < href.length; i++) {
+              var url = $(href[i]).attr('href');
+              //alert($(href[i]).text() + ":"+postLink);
+              var text = $(href[i]).text();
+              if (url.indexOf("localhost") === -1) {//omit localhost
+                nrTries = 0; //reset it
+                await urlExists(text, url, postLink, i);
+              }
+            }
+            if (tempBrokenLinks !== nrBrokenLinks) //a broken link was found ==>> it was printed out ==>> print newline after it
+              $("#list").append("<br>");
+            // }
+          }
+        } catch (err) {
+
+        }
+      }
+      //update progress bar - if totalPages is missing from the parameters then the result will be inaccurate
+      //but returning the remaining page numbers with the api is expensive
+      var amount = (100 * page) / totalPages;
+      setProgressBar(amount);
+
+      //if no more pages in result then break
+      if (jsonPost.has_more == false)
+        return 0;
+    } catch (err) {
+
+    }
+
   }
   return 0;
 }
@@ -256,7 +301,7 @@ function setProgressBar(amount) {
 
 async function main() {
   var msg;
-  var value = await searchBrokenLinks(10);
+  var value = await searchBrokenLinks(totPages);
 
   switch (value) {
     case 0:
@@ -268,6 +313,7 @@ async function main() {
   }
   msg += " " + nrBrokenLinks + " broken links found...";
   alert(msg);
+  alert("maxpage=" + maxPage)
 }
 
 $(document).ready(function() {
